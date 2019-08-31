@@ -1,0 +1,5 @@
+{
+    "token": "tokengoeshere",
+    "keyword": "!wm",
+    "apiUrl": "http://localhost:3001/"
+}
