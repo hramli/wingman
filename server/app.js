@@ -16,12 +16,28 @@ app.use(cors());
 
 app.listen(3001);
 
-app.get('/', (req,res) => {
-    axios.get(twitchApiUrl+'streams?first=20', twitchHeader)
+app.get('/api/twitch', async (req,res) => {
+    let game_name = req.query.game_name;
+    let numStreams = req.query.first;
+    let game_id;
+
+    if(!numStreams)
+        numStreams = 10;
+
+    let url = twitchApiUrl+'streams?first='+numStreams;
+
+    //if there is a game name specified, get game id first
+    if(game_name)
+    {
+        game_id = await getGameIdByGameName(game_name);
+        url += '&game_id=' + game_id;
+    }
+
+
+    axios.get(url, twitchHeader)
     .then(async function(response){
         let body = response.data;
         let streams = [];
-        let numStreams = 20; //change to query param
         for(let i = 0; i < numStreams; i++)
         {
             let stream = body.data[i];
@@ -48,12 +64,13 @@ app.get('/', (req,res) => {
         res.send(streams);
     })
     .catch((err) => {
-
+        console.log(err);
+        res.sendStatus(err.status);
     });
 });
 
 app.get('/test', async function(req,res){
-    let string = await getGameIdByGameName('Dota 2');
+    let string = await getGameIdByGameName('Fortnite');
     res.send(string);
 })
 
