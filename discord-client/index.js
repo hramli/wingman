@@ -20,6 +20,17 @@ client.on('message', msg => {
     //if message is not a bot command
     if(arguments[0] != keyword)
         return;
+
+    if(arguments.length <= 1)
+    {
+        const x_emote = client.emojis.find(emoji => emoji.name == 'x');
+        msg.channel.send({embed: {
+            color: 15158332,
+            title: `❌ Missing arguments`,
+            description: `!wm [option]`
+          }
+        });
+    }
     
     if(arguments[1] == 'topstreams')
     {
@@ -27,18 +38,33 @@ client.on('message', msg => {
         .then((response) => {
             let res = response.data;
             let numStreams = res.length;
-            let string = '\n';
+            let streamFields = [];
             for(let i = 0; i < numStreams; i++)
             {
-                string += `${res[i].user_name} ${res[i].viewer_count}`;
-                if(i != numStreams - 1)
-                    string += '\n';
+                streamFields.push(
+                    {
+                        name: res[i].user_name,
+                        value: `playing ${res[i].game_name} with ${res[i].viewer_count} viewers`
+                    }
+                );
             }
-            msg.reply(string);
+            msg.channel.send({embed: {
+                color: 3447003,
+                title: "Top streams",
+                url: "https://www.twitch.tv",
+                description: "Currently most viewed channels on twitch.tv",
+                fields: streamFields,
+                timestamp: new Date(),
+                footer: {
+                  icon_url: client.user.avatarURL,
+                  text: "© wingman"
+                }
+              }
+            });
         })
         .catch((err) => {
             console.log(err);
-            msg.reply('Oops, an error occurred. Please try again later!');
+            msg.channel.send('Oops, an error occurred. Please try again later!');
         });
     }
 });
