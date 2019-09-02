@@ -1,5 +1,6 @@
 const Discord = require('discord.js');
 const axios = require('axios');
+const ytdl = require('ytdl-core');
 const settings = require('./botsettings.json')
 const supportedGames = require('./supportedgames.json');
 
@@ -63,6 +64,50 @@ client.on('message', async(msg) => {
                 msg.channel.send(getEmbedMessage('❌ Game not supported yet', 15158332, '!wm supportedgames to see list of supported games'));
             }
         }
+    }
+    else if(arguments[1] == "play")
+    {
+        //if user is not in a voice channel
+        const voiceChannel = msg.member.voiceChannel;
+        if(!voiceChannel)
+        {
+            msg.channel.send(getEmbedMessage('❌ You need to be in a voice channel to play music', 15158332));
+            return;
+        }
+
+        //if bot does not have permissions to join voice channel
+        let permissions = voiceChannel.permissionsFor(msg.client.user);
+        if (!permissions.has('CONNECT') || !permissions.has('SPEAK'))
+        {
+            message.channel.send('I need the permissions to join and   speak in your voice channel!');
+            return;
+        }
+
+        let url = arguments[2];
+
+        //if message is missing youtube url
+        if(!url)
+        {
+            msg.channel.send(getEmbedMessage(`❌ Missing arguments`, 15158332, `!wm play [youtube link]`));
+            return;
+        }
+
+        try
+        {
+            const songInfo = await ytdl.getInfo(url);
+            const song = {
+                title: songInfo.title,
+                url: songInfo.video_url,
+            };
+        }
+        catch(err)
+        {
+            msg.channel.send(getEmbedMessage(`❌ Bad arguments`, 15158332, `Invalid url`));
+        }
+    }
+    else if(arguments[1] == "stop")
+    {
+
     }
     else if(arguments[1] == "help")
     {

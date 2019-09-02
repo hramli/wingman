@@ -70,7 +70,7 @@ app.get('/api/twitch', async (req,res) => {
 });
 
 app.get('/test', async function(req,res){
-    let string = await getGameIdByGameName('Fortnite');
+    let string = await getGameIdByGameName('Dota 2');
     res.send(string);
 })
 
