@@ -70,73 +70,20 @@ client.on('message', async(msg) => {
     }
     else if(arguments[1] == "play")
     {
-        //if user is not in a voice channel
-        const voiceChannel = msg.member.voiceChannel;
-        if(!voiceChannel)
-        {
-            msg.channel.send(getEmbedMessage('❌ You need to be in a voice channel to play music', 15158332));
-            return;
-        }
-
-        //if bot does not have permissions to join voice channel
-        let permissions = voiceChannel.permissionsFor(msg.client.user);
-        if (!permissions.has('CONNECT') || !permissions.has('SPEAK'))
-        {
-            message.channel.send('I need the permissions to join and   speak in your voice channel!');
-            return;
-        }
-
-        let url = arguments[2];
-
-        //if message is missing youtube url
-        if(!url)
-        {
-            msg.channel.send(getEmbedMessage(`❌ Missing arguments`, 15158332, `!wm play [youtube link]`));
-            return;
-        }
-
-        try
-        {
-            if(dispatcher != null)
-            {
-                //TODO: add to queue
-                //for now, complain music is already playing
-                msg.channel.send(getEmbedMessage(`❌ Already playing audio`, 15158332, `Please try again later`));
-                return;
-            }
-            voiceChannel.leave();
-
-            voiceChannel.join().then(connection => {
-                console.log('joined channel');
-                const stream = ytdl(url, {filter: "audioonly"});
-                dispatcher = connection.playStream(stream, streamOptions);
-
-                //reset event emitters
-                dispatcher.off('end');
-
-                dispatcher.on('end', end => {
-                    console.log('left channel');
-                    voiceChannel.leave();
-                    dispatcher = null;
-                });
-            })
-            .catch(err => {
-                console.log(err);
-                dispatcher = null;
-                voiceChannel.leave();
-                msg.channel.send(getEmbedMessage(`❌ Error playing music`, 15158332, `Check url`))
-            });
-        }
-        catch(err)
-        {
-            msg.channel.send(getEmbedMessage(`❌ Bad arguments`, 15158332, `Invalid url`));
-        }
+        play(msg, arguments[2]);
     }
     else if(arguments[1] == "stop")
     {
         if(dispatcher)
         {
             dispatcher.end();
+        }
+    }
+    else if(arguments[1] == "pause")
+    {
+        if(dispatcher)
+        {
+            dispatcher.pause();
         }
     }
     else if(arguments[1] == "help")
@@ -154,7 +101,88 @@ client.on('message', async(msg) => {
 
 client.login(token);
 
-function getEmbedMessage(title, colorCode, description, fields,  url){
+function play(msg, url){
+    //if user is not in a voice channel
+    const voiceChannel = msg.member.voiceChannel;
+    if(!voiceChannel)
+    {
+        msg.channel.send(getEmbedMessage('❌ You need to be in a voice channel to play music', 15158332));
+        return;
+    }
+
+    //if bot does not have permissions to join voice channel
+    let permissions = voiceChannel.permissionsFor(msg.client.user);
+    if (!permissions.has('CONNECT') || !permissions.has('SPEAK'))
+    {
+        message.channel.send('I need the permissions to join and   speak in your voice channel!');
+        return;
+    }
+
+    //if message is missing youtube url
+    if(!url)
+    {
+        msg.channel.send(getEmbedMessage(`❌ Missing arguments`, 15158332, `!wm play [youtube link]`));
+        return;
+    }
+
+    try
+    {
+        if(dispatcher != null)
+        {
+            //TODO: add to queue
+            //for now, complain music is already playing
+            msg.channel.send(getEmbedMessage(`❌ Already playing audio`, 15158332, `Please try again later`));
+            return;
+        }
+        voiceChannel.leave();
+
+        voiceChannel.join().then(async (connection) => {
+            console.log('joined channel');
+
+            const audioInfo = await ytdl.getInfo(url);
+            const audio = {
+                title: audioInfo.title,
+                url: audioInfo.video_url,
+                channel: audioInfo.author.name,
+                duration: audioInfo.length_seconds
+            };
+
+            const stream = ytdl(url, {filter: "audioonly"});
+            dispatcher = connection.playStream(stream, streamOptions);
+
+            msg.channel.send(getEmbedMessage(`Playing: ${audio.title}`, 0xedfff7, null,[
+                {
+                    "name": 'Channel',
+                    "value": `${audio.channel}`,
+                    "inline": true
+                },
+                {
+                    "name": 'Duration',
+                    "value": secondsToMinutes(audio.duration),
+                    "inline": true
+                }
+            ]));
+
+            dispatcher.on('end', end => {
+                console.log('left channel');
+                voiceChannel.leave();
+                dispatcher = null;
+            });
+        })
+        .catch(err => {
+            console.log(err);
+            dispatcher = null;
+            voiceChannel.leave();
+            msg.channel.send(getEmbedMessage(`❌ Error playing music`, 15158332, `Check url`))
+        });
+    }
+    catch(err)
+    {
+        msg.channel.send(getEmbedMessage(`❌ Bad arguments`, 15158332, `Invalid url`));
+    }
+}
+
+function getEmbedMessage(title, colorCode, description, fields,  url, inlineFields){
     let embedMessage = {
         color: colorCode,
         title: title,
@@ -168,6 +196,9 @@ function getEmbedMessage(title, colorCode, description, fields,  url){
     
     if(url)
         embedMessage['url'] = url;
+    
+    if(inlineFields)
+        embedMessage['fields'].push(inlineFields);
     
     return {
         embed: embedMessage
@@ -214,6 +245,21 @@ function getTwitchStreamFieldsForEmbed(twitchStreamerArr){
         );
     }
     return streamFields;
+}
+
+//returns mm:ss format
+function secondsToMinutes(seconds){
+    seconds = parseInt(seconds+'');
+
+    let minutes = Math.floor(seconds / 60);
+    seconds -= (60*minutes);
+    
+    if(seconds < 10)
+    {
+        return minutes+':0'+seconds;
+    }
+
+    return minutes+':'+seconds;
 }
 
 //may need to refactor with helper function to prevent too much try-catch blocks in async/await
