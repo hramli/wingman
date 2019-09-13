@@ -9,6 +9,9 @@ const token = settings.token;
 const apiUrl = settings.apiUrl;
 const keyword = settings.keyword;
 
+const streamOptions = {seek: 0, volume: 1};
+let dispatcher = null;
+
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
   });
@@ -94,11 +97,35 @@ client.on('message', async(msg) => {
 
         try
         {
-            const songInfo = await ytdl.getInfo(url);
-            const song = {
-                title: songInfo.title,
-                url: songInfo.video_url,
-            };
+            if(dispatcher != null)
+            {
+                //TODO: add to queue
+                //for now, complain music is already playing
+                msg.channel.send(getEmbedMessage(`❌ Already playing audio`, 15158332, `Please try again later`));
+                return;
+            }
+            voiceChannel.leave();
+
+            voiceChannel.join().then(connection => {
+                console.log('joined channel');
+                const stream = ytdl(url, {filter: "audioonly"});
+                dispatcher = connection.playStream(stream, streamOptions);
+
+                //reset event emitters
+                dispatcher.off('end');
+
+                dispatcher.on('end', end => {
+                    console.log('left channel');
+                    voiceChannel.leave();
+                    dispatcher = null;
+                });
+            })
+            .catch(err => {
+                console.log(err);
+                dispatcher = null;
+                voiceChannel.leave();
+                msg.channel.send(getEmbedMessage(`❌ Error playing music`, 15158332, `Check url`))
+            });
         }
         catch(err)
         {
@@ -107,7 +134,10 @@ client.on('message', async(msg) => {
     }
     else if(arguments[1] == "stop")
     {
-
+        if(dispatcher)
+        {
+            dispatcher.end();
+        }
     }
     else if(arguments[1] == "help")
     {
