@@ -9,6 +9,8 @@ const token = settings.token;
 const apiUrl = settings.apiUrl;
 const keyword = settings.keyword;
 
+let audioQueue = [];
+
 const streamOptions = {seek: 0, volume: 1};
 let dispatcher = null;
 
@@ -63,20 +65,75 @@ client.on('message', async(msg) => {
             //if game not supported yet/not found
             else
             {
-                let fields = [];
                 msg.channel.send(getEmbedMessage('❌ Game not supported yet', 15158332, '!wm supportedgames to see list of supported games'));
             }
         }
     }
     else if(arguments[1] == "play")
     {
-        play(msg, arguments[2]);
+        //if user is not in a voice channel
+        const voiceChannel = msg.member.voiceChannel;
+        if(!voiceChannel)
+        {
+            msg.channel.send(getEmbedMessage('❌ You need to be in a voice channel to play music', 15158332));
+            return;
+        }
+
+        //if bot does not have permissions to join voice channel
+        let permissions = voiceChannel.permissionsFor(msg.client.user);
+        if (!permissions.has('CONNECT') || !permissions.has('SPEAK'))
+        {
+            message.channel.send('I need the permissions to join and speak in your voice channel!');
+            return;
+        }
+
+        let url = arguments[2];
+
+        //if message is missing youtube url
+        if(!url)
+        {
+            msg.channel.send(getEmbedMessage(`❌ Missing arguments`, 15158332, `!wm play [youtube link]`));
+            return;
+        }
+
+        if(dispatcher != null)
+        {
+            //TODO: add to queue
+            //for now, complain music is already playing
+            const audioInfo = await ytdl.getInfo(url);
+
+            let queuedItem = new AudioItem(voiceChannel, msg, url, audioInfo.title, audioInfo.author.name, audioInfo.length_seconds);
+            audioQueue.push(queuedItem);
+
+            msg.channel.send(getEmbedMessage(`Added to queue: ${queuedItem.title}`, 0xedfff7));
+            return;
+        }
+
+        play(voiceChannel, msg, url);
     }
     else if(arguments[1] == "stop")
+    {
+        //empty queue
+        audioQueue = [];
+
+        if(dispatcher)
+        {
+            dispatcher.end();
+        }
+        else 
+        {
+            msg.channel.send(getEmbedMessage(`❌ No audio playing`, 15158332, `!wm play [youtube link]`));
+        }
+    }
+    else if(arguments[1] == "skip")
     {
         if(dispatcher)
         {
             dispatcher.end();
+        }
+        else
+        {
+            msg.channel.send(getEmbedMessage(`❌ No audio playing`, 15158332, `!wm play [youtube link]`));
         }
     }
     else if(arguments[1] == "pause")
@@ -91,6 +148,17 @@ client.on('message', async(msg) => {
         //show list of available commands
 
     }
+    else if(arguments[1] == "queue")
+    {
+        if(audioQueue.length > 0)
+        {
+            msg.channel.send(getEmbedMessage('Queue', 0xedfff7, 'Currently in queue', getAudioQueueFieldsForEmbed()));
+        }
+        else
+        {
+            msg.channel.send(getEmbedMessage('Queue', 0xedfff7, 'Queue is empty'));
+        }
+    }
     //if bad command
     else
     {
@@ -101,44 +169,11 @@ client.on('message', async(msg) => {
 
 client.login(token);
 
-function play(msg, url){
-    //if user is not in a voice channel
-    const voiceChannel = msg.member.voiceChannel;
-    if(!voiceChannel)
-    {
-        msg.channel.send(getEmbedMessage('❌ You need to be in a voice channel to play music', 15158332));
-        return;
-    }
-
-    //if bot does not have permissions to join voice channel
-    let permissions = voiceChannel.permissionsFor(msg.client.user);
-    if (!permissions.has('CONNECT') || !permissions.has('SPEAK'))
-    {
-        message.channel.send('I need the permissions to join and   speak in your voice channel!');
-        return;
-    }
-
-    //if message is missing youtube url
-    if(!url)
-    {
-        msg.channel.send(getEmbedMessage(`❌ Missing arguments`, 15158332, `!wm play [youtube link]`));
-        return;
-    }
-
+//plays audio of the youtube url
+async function play(voiceChannel, msg, url){
     try
     {
-        if(dispatcher != null)
-        {
-            //TODO: add to queue
-            //for now, complain music is already playing
-            msg.channel.send(getEmbedMessage(`❌ Already playing audio`, 15158332, `Please try again later`));
-            return;
-        }
-        voiceChannel.leave();
-
         voiceChannel.join().then(async (connection) => {
-            console.log('joined channel');
-
             const audioInfo = await ytdl.getInfo(url);
             const audio = {
                 title: audioInfo.title,
@@ -164,16 +199,25 @@ function play(msg, url){
             ]));
 
             dispatcher.on('end', end => {
-                console.log('left channel');
-                voiceChannel.leave();
-                dispatcher = null;
+                if(audioQueue.length == 0)
+                {
+                    console.log('left channel');
+                    voiceChannel.leave();
+                    dispatcher = null;
+                }
+                else
+                {
+                    console.log('loading next queue');
+                    let queuedItem = audioQueue.shift();
+                    play(queuedItem.voiceChannel, queuedItem.msg, queuedItem.url);
+                }
             });
         })
         .catch(err => {
-            console.log(err);
+            //this is if the argument is not a proper url, maybe query for youtube
             dispatcher = null;
             voiceChannel.leave();
-            msg.channel.send(getEmbedMessage(`❌ Error playing music`, 15158332, `Check url`))
+            msg.channel.send(getEmbedMessage(`❌ Error playing music`, 15158332, `Check url: Must begin with http:// or https://`));
         });
     }
     catch(err)
@@ -247,13 +291,35 @@ function getTwitchStreamFieldsForEmbed(twitchStreamerArr){
     return streamFields;
 }
 
+function getAudioQueueFieldsForEmbed(){
+    let arrLength = audioQueue.length;
+    let audioQueueFields = [];
+    for(let i = 0; i < arrLength; i++)
+    {
+        let queueItem = audioQueue[i];
+        audioQueueFields.push(
+            {
+                name:  'Video title',
+                value: queueItem.title,
+                inline: true
+            },
+            {
+                name: 'Channel',
+                value: queueItem.channel,
+                inline: true
+            }
+        );
+    }
+    return audioQueueFields;
+}
+
 //returns mm:ss format
 function secondsToMinutes(seconds){
     seconds = parseInt(seconds+'');
 
     let minutes = Math.floor(seconds / 60);
     seconds -= (60*minutes);
-    
+
     if(seconds < 10)
     {
         return minutes+':0'+seconds;
@@ -274,5 +340,17 @@ class TwitchStreamer{
         this.name = name;
         this.game_name = game_name;
         this.viewers = viewers;
+    }
+}
+
+class AudioItem{
+    constructor(voiceChannel, msg, url, title, name, length_seconds)
+    {
+        this.voiceChannel = voiceChannel;
+        this.msg = msg;
+        this.url = url;
+        this.title = title;
+        this.channel = name;
+        this.duration = length_seconds;
     }
 }
