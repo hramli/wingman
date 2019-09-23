@@ -1,9 +1,9 @@
 {
-    "token": "NjE3MjAzNDQyMzI2NDM3OTA5.XWntkQ.-PMW1irKiK9rRK52ccy5UE-LcmU",
+    "token": "insertokenhere",
     "prefix": "!",
     "apiUrl": "http://localhost:3001/api/",
-    "youtube_apiKey":"AIzaSyA3KEa2IpjBGsWaDFp6pGsD1zsaffLSou8",
-    "twitch_clientid": "diwzh1uqt71b21ybwyozfsb2y6rn3x",
+    "youtube_apiKey":"insertapikeyhere",
+    "twitch_clientid": "inserttwitchclientidhere",
     "commands": [
         "play",
         "stop",
