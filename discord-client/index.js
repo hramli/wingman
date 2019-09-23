@@ -1,15 +1,11 @@
 const Discord = require('discord.js');
-const axios = require('axios');
-const ytdl = require('ytdl-core');
 const settings = require('./botsettings.json')
-const supportedGames = require('./supportedgames.json');
 const commandModulesPath = '../commands/';
 
 const getEmbedMessage = require('../shared/embed').getEmbedMessage;
 
 const bot = new Discord.Client();
 const token = settings.token;
-const apiUrl = settings.apiUrl;
 const prefix = settings.prefix;
 bot.commands = new Discord.Collection();
 
