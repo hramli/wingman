@@ -7,7 +7,9 @@ Node.js, Discord API, Twitch API, ytdl-core
 <p><a href="https://www.npmjs.com/package/ytdl-core">ytdl-core</a></p>
 
 ## Adding wingman to your server
-Open https://discordapp.com/api/oauth2/authorize?client_id=617203442326437909&permissions=0&scope=bot and select the server you want to add it to.
+<strong>Bot stopped for now</strong>
+
+<s>Open https://discordapp.com/api/oauth2/authorize?client_id=617203442326437909&permissions=0&scope=bot and select the server you want to add it to.</s>
 
 ## Commands
 <ul>
